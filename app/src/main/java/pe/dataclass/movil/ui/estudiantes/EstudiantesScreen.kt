@@ -11,7 +11,13 @@ import pe.dataclass.movil.data.remote.EstudianteApi
 
 @Composable
 fun EstudiantesScreen(estudiantes: List<EstudianteApi>, error: String?, onVolver: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
         TextButton(onClick = onVolver) { Text("Volver") }
         Text("Estudiantes", style = MaterialTheme.typography.titleLarge)
         Text("${estudiantes.size} en total", style = MaterialTheme.typography.bodySmall)

@@ -1,17 +1,22 @@
 package pe.dataclass.movil.ui.login
 
 import android.app.Application
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+
 import pe.dataclass.movil.data.remote.Aula
 import pe.dataclass.movil.data.repo.AsistenciaRepositorio
 import pe.dataclass.movil.data.repo.AuthRepositorio
+import pe.dataclass.movil.sync.Sincronizacion
 import pe.dataclass.movil.data.repo.SesionExpiradaException
 import pe.dataclass.movil.data.remote.EstudianteApi
 
@@ -62,6 +67,21 @@ class LoginViewModel(aplicacion: Application) : AndroidViewModel(aplicacion) {
         cargando = true
         error = null
         viewModelScope.launch {
+            val correoNuevo = correo.trim().lowercase()
+
+            // Si hay asistencias pendientes de otra cuenta, no se deja entrar con esta
+            val bloqueadas = withContext(Dispatchers.IO) {
+                val pendientes = AsistenciaRepositorio(getApplication()).contarPendientes()
+                val dueno = repositorio.ultimoCorreo()
+                if (pendientes > 0 && dueno != null && dueno != correoNuevo) pendientes else 0
+            }
+            if (bloqueadas > 0) {
+                error = "Este teléfono tiene $bloqueadas asistencia(s) sin enviar de otra cuenta. " +
+                        "Inicia sesión con esa cuenta para enviarlas."
+                cargando = false
+                return@launch
+            }
+
             repositorio.iniciarSesion(correo, clave)
                 .onSuccess {
                     nombre = it.nombre_completo
@@ -70,6 +90,8 @@ class LoginViewModel(aplicacion: Application) : AndroidViewModel(aplicacion) {
                     debeCambiar = it.debe_cambiar
                     clave = ""
                     sesionIniciada = true
+                    // Si quedaron pendientes de esta misma cuenta, se envían ahora
+                    Sincronizacion.programar(getApplication())
                 }
                 .onFailure { error = it.message }
             cargando = false

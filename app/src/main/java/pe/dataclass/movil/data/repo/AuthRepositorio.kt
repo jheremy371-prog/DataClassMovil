@@ -16,12 +16,19 @@ class SesionExpiradaException : Exception("Tu sesión expiró. Inicia sesión nu
 class AuthRepositorio(contexto: Context) {
     private val sesion = SesionLocal(contexto)
 
+    // Correo de la última cuenta que inició sesión. Se guarda aparte para que
+    // el vencimiento de la sesión no lo borre (sirve para proteger pendientes).
+    private val duenoSesion = contexto.getSharedPreferences("dueno_sesion", Context.MODE_PRIVATE)
+
+    fun ultimoCorreo(): String? = duenoSesion.getString("correo", null)
+
     suspend fun sesionGuardada(): SesionGuardada? = sesion.leer()
 
     suspend fun iniciarSesion(correo: String, clave: String): Result<RespuestaLogin> =
         ejecutar {
             val respuesta = ClienteApi.servicio.login(correo.trim().lowercase(), clave)
             guardar(respuesta)
+            duenoSesion.edit().putString("correo", correo.trim().lowercase()).apply()
             respuesta
         }
 
@@ -62,6 +69,7 @@ class AuthRepositorio(contexto: Context) {
                 // Sin conexión: igual se cierra la sesión local
             }
         }
+        duenoSesion.edit().remove("correo").apply()
         sesion.cerrar()
     }
 

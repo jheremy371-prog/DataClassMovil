@@ -20,7 +20,11 @@ fun HomeScreen(
     val esDirectivo = rol == "directivo"
     val esDocenteConAula = rol == "docente" && !aula.isNullOrBlank()
 
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .statusBarsPadding()
+        .navigationBarsPadding()
+        .padding(20.dp)) {
         Text(
             if (esDirectivo) "Panel de dirección" else "Mi panel",
             style = MaterialTheme.typography.labelLarge,
