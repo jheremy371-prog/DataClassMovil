@@ -1,34 +1,30 @@
 package pe.dataclass.movil
 
 import android.os.Bundle
-
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-
 import androidx.lifecycle.viewmodel.compose.viewModel
-
-import pe.dataclass.movil.ui.aulas.AulasScreen
 import pe.dataclass.movil.ui.asistencia.AsistenciaScreen
 import pe.dataclass.movil.ui.asistencia.AsistenciaViewModel
+import pe.dataclass.movil.ui.aulas.AulasScreen
+import pe.dataclass.movil.ui.estudiantes.EstudiantesScreen
 import pe.dataclass.movil.ui.home.HomeScreen
 import pe.dataclass.movil.ui.login.CambiarPasswordScreen
 import pe.dataclass.movil.ui.login.LoginScreen
 import pe.dataclass.movil.ui.login.LoginViewModel
 import pe.dataclass.movil.ui.theme.DataClassTheme
-import pe.dataclass.movil.ui.estudiantes.EstudiantesScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,16 +82,25 @@ class MainActivity : ComponentActivity() {
                         viendoAulas -> AulasScreen(
                             aulas = modelo.aulas,
                             error = modelo.error,
-                            onVolver = { viendoAulas = false }
+                            onVolver = { viendoAulas = false },
+                            onElegirAula = { aulaElegida ->
+                                asistenciaVm.abrir(aulaElegida)
+                                viendoAulas = false
+                                viendoAsistencia = true
+                            }
                         )
                         viendoAsistencia -> AsistenciaScreen(
-                            aula = modelo.aula.orEmpty(),
-                            fecha = asistenciaVm.fecha,
+                            aula = asistenciaVm.aula,
+                            fecha = asistenciaVm.fecha.toString(),
+                            esHoy = asistenciaVm.esHoy,
+                            puedeCambiarDia = modelo.rol == "directivo",
                             estudiantes = asistenciaVm.estudiantes,
                             estados = asistenciaVm.estados,
                             pendientes = asistenciaVm.pendientes,
                             mensaje = asistenciaVm.mensaje,
                             onMarcar = { id, estado -> asistenciaVm.marcar(id, estado) },
+                            onDiaAnterior = { asistenciaVm.cambiarDia(-1) },
+                            onDiaSiguiente = { asistenciaVm.cambiarDia(1) },
                             onVolver = { viendoAsistencia = false }
                         )
                         viendoEstudiantes -> EstudiantesScreen(
@@ -103,7 +108,6 @@ class MainActivity : ComponentActivity() {
                             error = modelo.error,
                             onVolver = { viendoEstudiantes = false }
                         )
-
                         else -> HomeScreen(
                             nombre = modelo.nombre,
                             rol = modelo.rol,
@@ -117,7 +121,7 @@ class MainActivity : ComponentActivity() {
                                 viendoEstudiantes = true
                             },
                             onPasarAsistencia = {
-                                asistenciaVm.cargar()
+                                asistenciaVm.abrir(modelo.aula.orEmpty())
                                 viendoAsistencia = true
                             },
                             onCerrarSesion = {

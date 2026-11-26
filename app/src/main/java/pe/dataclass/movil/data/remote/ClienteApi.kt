@@ -1,6 +1,6 @@
 package pe.dataclass.movil.data.remote
-
 import pe.dataclass.movil.BuildConfig
+
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
@@ -9,6 +9,7 @@ import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 data class RespuestaLogin(
     val access_token: String,
@@ -80,7 +81,11 @@ interface ApiDataClass {
     suspend fun aulas(@Header("Authorization") bearer: String): List<Aula>
 
     @GET("estudiantes")
-    suspend fun estudiantes(@Header("Authorization") bearer: String): RespuestaEstudiantes
+    suspend fun estudiantes(
+        @Header("Authorization") bearer: String,
+        @Query("aula") aula: String?,
+        @Query("limite") limite: Int
+    ): RespuestaEstudiantes
 }
 
 object ClienteApi {

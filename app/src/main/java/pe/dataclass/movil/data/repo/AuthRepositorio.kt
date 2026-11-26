@@ -68,7 +68,7 @@ class AuthRepositorio(contexto: Context) {
     suspend fun listarEstudiantes(): Result<List<EstudianteApi>> {
         val token = sesion.token() ?: return Result.failure(SesionExpiradaException())
         return try {
-            Result.success(ClienteApi.servicio.estudiantes("Bearer $token").items)
+            Result.success(ClienteApi.servicio.estudiantes("Bearer $token", null, 500).items)
         } catch (e: HttpException) {
             if (e.code() == 401) {
                 sesion.cerrar()

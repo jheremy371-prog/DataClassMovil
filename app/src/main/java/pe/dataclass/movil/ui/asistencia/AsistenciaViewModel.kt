@@ -16,39 +16,61 @@ import java.time.LocalDate
 
 class AsistenciaViewModel(aplicacion: Application) : AndroidViewModel(aplicacion) {
     private val repo = AsistenciaRepositorio(aplicacion)
-    val fecha: String = LocalDate.now().toString()
 
+    var aula by mutableStateOf("")
+    var fecha by mutableStateOf(LocalDate.now())
     var estudiantes by mutableStateOf<List<EstudianteLocal>>(emptyList())
     var estados by mutableStateOf<Map<String, String>>(emptyMap())
     var mensaje by mutableStateOf<String?>(null)
     var pendientes by mutableStateOf(0)
 
-    fun cargar() {
+    val esHoy: Boolean get() = fecha == LocalDate.now()
+
+    // Se llama al elegir un aula (docente: la suya; directivo: la que toque)
+    fun abrir(aulaElegida: String) {
+        aula = aulaElegida
+        fecha = LocalDate.now()
         viewModelScope.launch {
             withContext(Dispatchers.IO) { repo.reintentarRechazados() }
-            withContext(Dispatchers.IO) { repo.actualizarEstudiantes() }
+            withContext(Dispatchers.IO) { repo.actualizarEstudiantes(aula) }
                 .onFailure { mensaje = it.message }
                 .onSuccess { mensaje = null }
-
-            estudiantes = withContext(Dispatchers.IO) { repo.estudiantesDelAula() }
-            estados = withContext(Dispatchers.IO) { repo.asistenciasDelDia(fecha) }
-            pendientes = withContext(Dispatchers.IO) { repo.contarPendientes() }
-            val rechazados = withContext(Dispatchers.IO) { repo.contarRechazados() }
-            if (rechazados > 0) {
-                mensaje = "$rechazados registro(s) rechazados por el servidor; revísalos en la web."
-            }
+            cargarDia()
             Sincronizacion.programar(getApplication())
         }
     }
 
+    // Solo el directivo llama a esta función; no permite ir a fechas futuras
+    fun cambiarDia(dias: Long) {
+        val nueva = fecha.plusDays(dias)
+        if (nueva.isAfter(LocalDate.now())) return
+        fecha = nueva
+        viewModelScope.launch { cargarDia() }
+    }
+
     fun marcar(idEstudiante: String, estado: String) {
+        val dia = fecha.toString()
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                repo.guardarAsistencia(idEstudiante, fecha, estado, false)
+                repo.guardarAsistencia(idEstudiante, dia, estado, false)
             }
             estados = estados + (idEstudiante to estado)
             pendientes = withContext(Dispatchers.IO) { repo.contarPendientes() }
             Sincronizacion.programar(getApplication())
+        }
+    }
+
+    private suspend fun cargarDia() {
+        val dia = fecha.toString()
+        estudiantes = withContext(Dispatchers.IO) { repo.estudiantesDelAula(aula) }
+        estados = withContext(Dispatchers.IO) { repo.asistenciasDelDia(dia) }
+        pendientes = withContext(Dispatchers.IO) { repo.contarPendientes() }
+        val total = withContext(Dispatchers.IO) { repo.contarRechazados() }
+        if (total > 0) {
+            val detalles = withContext(Dispatchers.IO) { repo.listarRechazados() }
+            val resto = if (total > detalles.size) " y ${total - detalles.size} más" else ""
+            mensaje = "El servidor rechazó $total registro(s): " +
+                    detalles.joinToString("; ") + resto + ". Revísalos en la web."
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pe.dataclass.movil.data.repo.EstudianteLocal
@@ -20,11 +21,15 @@ private val opciones = listOf(
 fun AsistenciaScreen(
     aula: String,
     fecha: String,
+    esHoy: Boolean,
+    puedeCambiarDia: Boolean,
     estudiantes: List<EstudianteLocal>,
     estados: Map<String, String>,
     pendientes: Int,
     mensaje: String?,
     onMarcar: (String, String) -> Unit,
+    onDiaAnterior: () -> Unit,
+    onDiaSiguiente: () -> Unit,
     onVolver: () -> Unit
 ) {
     Column(
@@ -34,8 +39,25 @@ fun AsistenciaScreen(
     ) {
         TextButton(onClick = onVolver) { Text("Volver") }
         Text("Asistencia · $aula", style = MaterialTheme.typography.titleLarge)
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (puedeCambiarDia) {
+                OutlinedButton(onClick = onDiaAnterior) { Text("‹") }
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                if (esHoy) "Hoy · $fecha" else "Día $fecha",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            if (puedeCambiarDia) {
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(onClick = onDiaSiguiente, enabled = !esHoy) { Text("›") }
+            }
+        }
+
         Text(
-            "Fecha: $fecha · Pendientes de enviar: $pendientes",
+            "Pendientes de enviar: $pendientes",
             style = MaterialTheme.typography.bodySmall
         )
         Text(
@@ -78,15 +100,9 @@ private fun FilaEstudiante(nombre: String, estadoActual: String?, onElegir: (Str
             ) {
                 opciones.forEach { (estado, letra) ->
                     if (estadoActual == estado) {
-                        Button(
-                            onClick = { onElegir(estado) },
-                            modifier = Modifier.weight(1f)
-                        ) { Text(letra) }
+                        Button(onClick = { onElegir(estado) }, modifier = Modifier.weight(1f)) { Text(letra) }
                     } else {
-                        OutlinedButton(
-                            onClick = { onElegir(estado) },
-                            modifier = Modifier.weight(1f)
-                        ) { Text(letra) }
+                        OutlinedButton(onClick = { onElegir(estado) }, modifier = Modifier.weight(1f)) { Text(letra) }
                     }
                 }
             }

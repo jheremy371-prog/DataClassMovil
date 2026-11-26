@@ -10,25 +10,36 @@ import androidx.compose.ui.unit.dp
 import pe.dataclass.movil.data.remote.Aula
 
 @Composable
-fun AulasScreen(aulas: List<Aula>, error: String?, onVolver: () -> Unit) {
+fun AulasScreen(
+    aulas: List<Aula>,
+    error: String?,
+    onVolver: () -> Unit,
+    onElegirAula: (String) -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         TextButton(onClick = onVolver) { Text("Volver") }
         Text("Aulas", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Toca un aula para pasar asistencia",
+            style = MaterialTheme.typography.bodySmall
+        )
         Spacer(Modifier.height(12.dp))
 
         when {
             error != null -> Text(error, color = MaterialTheme.colorScheme.error)
             aulas.isEmpty() -> Text("No hay aulas para mostrar.")
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(aulas) { aula -> TarjetaAula(aula) }
+                items(aulas) { aula ->
+                    TarjetaAula(aula, onClick = { onElegirAula(aula.nombre) })
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TarjetaAula(aula: Aula) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun TarjetaAula(aula: Aula, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(aula.nombre, style = MaterialTheme.typography.titleMedium)
             Text("${aula.estudiantes} estudiantes", style = MaterialTheme.typography.bodyMedium)

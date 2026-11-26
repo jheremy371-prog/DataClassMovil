@@ -25,20 +25,21 @@ class AsistenciaRepositorio(contexto: Context) {
     private val sesion = SesionLocal(contexto)
 
     // Descarga los estudiantes del aula y reemplaza la copia local
-    suspend fun actualizarEstudiantes(): Result<Int> {
+    // Descarga los estudiantes de un aula y reemplaza solo esa aula en la copia local
+    suspend fun actualizarEstudiantes(aula: String): Result<Int> {
         val token = sesion.token()
             ?: return Result.failure(Exception("Tu sesión expiró. Inicia sesión nuevamente."))
         return try {
-            val estudiantes = ClienteApi.servicio.estudiantes("Bearer $token").items
+            val estudiantes = ClienteApi.servicio.estudiantes("Bearer $token", aula, 500).items
             val db = base.writableDatabase
             db.beginTransaction()
             try {
-                db.delete("estudiantes_local", null, null)
+                db.delete("estudiantes_local", "aula = ?", arrayOf(aula))
                 for (e in estudiantes) {
                     db.insert("estudiantes_local", null, ContentValues().apply {
                         put("id_estudiante", e.id_estudiante)
                         put("nombre_completo", e.nombre_completo)
-                        put("aula", e.aula.orEmpty())
+                        put("aula", e.aula ?: aula)
                     })
                 }
                 db.setTransactionSuccessful()
@@ -53,12 +54,13 @@ class AsistenciaRepositorio(contexto: Context) {
         }
     }
 
-    fun estudiantesDelAula(): List<EstudianteLocal> {
+    fun estudiantesDelAula(aula: String): List<EstudianteLocal> {
         val lista = mutableListOf<EstudianteLocal>()
         base.readableDatabase.query(
             "estudiantes_local",
             arrayOf("id_estudiante", "nombre_completo", "aula"),
-            null, null, null, null, "nombre_completo"
+            "aula = ?", arrayOf(aula),
+            null, null, "nombre_completo"
         ).use { c ->
             while (c.moveToNext()) {
                 lista.add(EstudianteLocal(c.getString(0), c.getString(1), c.getString(2)))
@@ -118,9 +120,21 @@ class AsistenciaRepositorio(contexto: Context) {
             null
         ).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
 
-    // Envía las asistencias pendientes, agrupadas por fecha.
-    // Lanza IOException si no hay red o el servidor falla (WorkManager reintenta)
-    // y SesionExpiradaException si el token venció.
+    fun listarRechazados(): List<String> {
+        val lista = mutableListOf<String>()
+        base.readableDatabase.query(
+            "asistencias_local",
+            arrayOf("id_estudiante", "error_sync"),
+            "is_synced = 0 AND error_sync IS NOT NULL",
+            null, null, null, null, "3"
+        ).use { c ->
+            while (c.moveToNext()) {
+                lista.add("${c.getString(0)}: ${c.getString(1)}")
+            }
+        }
+        return lista
+    }
+
     suspend fun sincronizarPendientes(): Int {
         val token = sesion.token() ?: throw SesionExpiradaException()
         var enviadas = 0
@@ -142,6 +156,7 @@ class AsistenciaRepositorio(contexto: Context) {
             } catch (e: HttpException) {
                 when (e.code()) {
                     401 -> throw SesionExpiradaException()
+                    409 -> throw IOException("Conflicto temporal, se reintentará")
                     in 400..499 -> actualizarRegistros(
                         fecha, ids, sincronizado = false, error = detalleError(e)
                     )
