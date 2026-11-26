@@ -98,6 +98,14 @@ class AsistenciaRepositorio(contexto: Context) {
         )
     }
 
+    // Quita el error de los rechazados para que se reintenten al abrir la pantalla
+    fun reintentarRechazados() {
+        val valores = ContentValues().apply { putNull("error_sync") }
+        base.writableDatabase.update(
+            "asistencias_local", valores, "is_synced = 0 AND error_sync IS NOT NULL", null
+        )
+    }
+
     fun contarPendientes(): Int =
         base.readableDatabase.rawQuery(
             "SELECT COUNT(*) FROM asistencias_local WHERE is_synced = 0 AND error_sync IS NULL",

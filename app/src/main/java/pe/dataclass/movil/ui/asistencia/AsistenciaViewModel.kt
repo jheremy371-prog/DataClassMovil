@@ -25,6 +25,7 @@ class AsistenciaViewModel(aplicacion: Application) : AndroidViewModel(aplicacion
 
     fun cargar() {
         viewModelScope.launch {
+            withContext(Dispatchers.IO) { repo.reintentarRechazados() }
             withContext(Dispatchers.IO) { repo.actualizarEstudiantes() }
                 .onFailure { mensaje = it.message }
                 .onSuccess { mensaje = null }
@@ -48,6 +49,16 @@ class AsistenciaViewModel(aplicacion: Application) : AndroidViewModel(aplicacion
             estados = estados + (idEstudiante to estado)
             pendientes = withContext(Dispatchers.IO) { repo.contarPendientes() }
             Sincronizacion.programar(getApplication())
+        }
+    }
+
+    // Cuenta por separado lo que se enviará solo (pendientes) y lo que el servidor rechazó
+    fun contarSinEnviar(alResultado: (Int, Int) -> Unit) {
+        viewModelScope.launch {
+            val (pendientes, rechazados) = withContext(Dispatchers.IO) {
+                repo.contarPendientes() to repo.contarRechazados()
+            }
+            alResultado(pendientes, rechazados)
         }
     }
 }
