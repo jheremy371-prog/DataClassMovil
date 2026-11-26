@@ -22,7 +22,7 @@ android {
     buildTypes {
         debug {
             // En el emulador, 10.0.2.2 apunta al localhost de tu PC
-            buildConfigField("String", "API_BASE_URL", "\"http://192.168.137.1:8000/api/v1/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://192.168.130.75:8000/api/v1/\"")
         }
         release {
             optimization {
