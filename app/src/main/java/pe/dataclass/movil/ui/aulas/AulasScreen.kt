@@ -10,16 +10,16 @@ import androidx.compose.ui.unit.dp
 import pe.dataclass.movil.data.remote.Aula
 
 @Composable
-fun AulasScreen(aulas: List<Aula>, onVolver: () -> Unit) {
+fun AulasScreen(aulas: List<Aula>, error: String?, onVolver: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         TextButton(onClick = onVolver) { Text("Volver") }
         Text("Aulas", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(12.dp))
 
-        if (aulas.isEmpty()) {
-            Text("No hay aulas para mostrar.")
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        when {
+            error != null -> Text(error, color = MaterialTheme.colorScheme.error)
+            aulas.isEmpty() -> Text("No hay aulas para mostrar.")
+            else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(aulas) { aula -> TarjetaAula(aula) }
             }
         }

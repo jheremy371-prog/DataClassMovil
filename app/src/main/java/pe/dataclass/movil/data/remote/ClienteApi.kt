@@ -3,10 +3,10 @@ package pe.dataclass.movil.data.remote
 import pe.dataclass.movil.BuildConfig
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.GET
 import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 
@@ -32,6 +32,27 @@ data class Aula(
     val estudiantes: Int
 )
 
+data class EstudianteApi(
+    val id_estudiante: String,
+    val nombre_completo: String,
+    val aula: String?
+)
+
+data class RespuestaEstudiantes(
+    val items: List<EstudianteApi>
+)
+
+data class RegistroLote(
+    val id_estudiante: String,
+    val estado_asistencia: String,
+    val justificada: Boolean
+)
+
+data class AsistenciasLoteCuerpo(
+    val fecha: String,
+    val registros: List<RegistroLote>
+)
+
 interface ApiDataClass {
     @FormUrlEncoded
     @POST("auth/login")
@@ -46,8 +67,20 @@ interface ApiDataClass {
         @Body cuerpo: CambioPasswordCuerpo
     ): RespuestaLogin
 
+    @POST("auth/cerrar-sesion")
+    suspend fun cerrarSesion(@Header("Authorization") bearer: String)
+
+    @POST("asistencias/lote")
+    suspend fun enviarAsistencias(
+        @Header("Authorization") bearer: String,
+        @Body cuerpo: AsistenciasLoteCuerpo
+    )
+
     @GET("aulas")
     suspend fun aulas(@Header("Authorization") bearer: String): List<Aula>
+
+    @GET("estudiantes")
+    suspend fun estudiantes(@Header("Authorization") bearer: String): RespuestaEstudiantes
 }
 
 object ClienteApi {

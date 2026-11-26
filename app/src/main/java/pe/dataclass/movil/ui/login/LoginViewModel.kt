@@ -6,30 +6,53 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import pe.dataclass.movil.data.repo.AuthRepositorio
+import kotlinx.coroutines.withContext
 import pe.dataclass.movil.data.remote.Aula
+import pe.dataclass.movil.data.repo.AsistenciaRepositorio
+import pe.dataclass.movil.data.repo.AuthRepositorio
+import pe.dataclass.movil.data.repo.SesionExpiradaException
+import pe.dataclass.movil.data.remote.EstudianteApi
 
 class LoginViewModel(aplicacion: Application) : AndroidViewModel(aplicacion) {
     private val repositorio = AuthRepositorio(aplicacion)
+
+    // Estado de la sesión
+    var restaurando by mutableStateOf(true)
+    var sesionIniciada by mutableStateOf(false)
+    var nombre by mutableStateOf("")
+    var rol by mutableStateOf("")
+
+    var aula by mutableStateOf<String?>(null)
+
+    var estudiantes by mutableStateOf<List<EstudianteApi>>(emptyList())
+    var debeCambiar by mutableStateOf(false)
+    var aulas by mutableStateOf<List<Aula>>(emptyList())
 
     // Login
     var correo by mutableStateOf("")
     var clave by mutableStateOf("")
     var cargando by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
-    var sesionIniciada by mutableStateOf(false)
-    var nombre by mutableStateOf("")
-    var rol by mutableStateOf("")
-    var aula by mutableStateOf<String?>(null)
-
-    var aulas by mutableStateOf<List<Aula>>(emptyList())
-    var debeCambiar by mutableStateOf(false)
 
     // Cambio de contraseña
     var claveActual by mutableStateOf("")
     var claveNueva by mutableStateOf("")
     var claveConfirmar by mutableStateOf("")
+
+    init {
+        viewModelScope.launch {
+            repositorio.sesionGuardada()?.let { s ->
+                nombre = s.nombre
+                rol = s.rol
+                aula = s.aula
+                debeCambiar = s.debeCambiar
+                sesionIniciada = true
+            }
+            restaurando = false
+        }
+    }
 
     fun entrar() {
         if (correo.isBlank() || clave.isBlank()) {
@@ -50,14 +73,6 @@ class LoginViewModel(aplicacion: Application) : AndroidViewModel(aplicacion) {
                 }
                 .onFailure { error = it.message }
             cargando = false
-        }
-    }
-
-    fun cargarAulas() {
-        viewModelScope.launch {
-            repositorio.listarAulas()
-                .onSuccess { aulas = it }
-                .onFailure { error = it.message }
         }
     }
 
@@ -82,6 +97,54 @@ class LoginViewModel(aplicacion: Application) : AndroidViewModel(aplicacion) {
                 }
                 .onFailure { error = it.message }
             cargando = false
+        }
+    }
+
+    fun cargarAulas() {
+        error = null
+        viewModelScope.launch {
+            repositorio.listarAulas()
+                .onSuccess { aulas = it }
+                .onFailure {
+                    if (it is SesionExpiradaException) {
+                        sesionIniciada = false
+                        aulas = emptyList()
+                    }
+                    error = it.message
+                }
+        }
+    }
+
+    fun cargarEstudiantes() {
+        error = null
+        viewModelScope.launch {
+            repositorio.listarEstudiantes()
+                .onSuccess { estudiantes = it }
+                .onFailure {
+                    if (it is SesionExpiradaException) {
+                        sesionIniciada = false
+                        estudiantes = emptyList()
+                    }
+                    error = it.message
+                }
+        }
+    }
+
+    fun cerrarSesion() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                AsistenciaRepositorio(getApplication()).borrarTodo()
+            }
+            repositorio.cerrarSesion()
+            sesionIniciada = false
+            nombre = ""
+            rol = ""
+            aula = null
+            debeCambiar = false
+            aulas = emptyList()
+            correo = ""
+            clave = ""
+            error = null
         }
     }
 }
